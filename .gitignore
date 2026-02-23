@@ -12,3 +12,8 @@ nul
 
 # Logs
 *.log
+
+
+# Added by cargo
+
+/target
