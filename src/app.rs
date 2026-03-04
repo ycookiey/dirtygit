@@ -37,6 +37,7 @@ pub struct App {
     pub show_help: bool,
     pub flash_message: Option<(String, std::time::Instant)>,
     pub repo_list_area: (u16, u16, u16, u16), // (x, y, width, height) for mouse hit testing
+    pub pending_external: Option<std::path::PathBuf>,
 }
 
 impl App {
@@ -59,6 +60,7 @@ impl App {
             show_help: false,
             flash_message: None,
             repo_list_area: (0, 0, 0, 0),
+            pending_external: None,
         }
     }
 

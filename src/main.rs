@@ -17,6 +17,8 @@ use crossterm::terminal::{
 use crossterm::ExecutableCommand;
 use event::Event;
 use std::io;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use tokio::sync::mpsc;
 
 #[tokio::main]
@@ -51,7 +53,8 @@ async fn main() -> io::Result<()> {
     let (tx, mut rx) = mpsc::unbounded_channel();
 
     // Spawn crossterm event reader
-    event::spawn_event_reader(tx.clone(), 250);
+    let event_stop = Arc::new(AtomicBool::new(false));
+    let mut event_handle = event::spawn_event_reader(tx.clone(), 250, Arc::clone(&event_stop));
 
     // Spawn initial background scan
     if let Some(ref cfg) = config {
@@ -84,6 +87,33 @@ async fn main() -> io::Result<()> {
                         continue;
                     }
                     handle_key(&mut app, key.code, key.modifiers, &tx);
+
+                    // Launch external program (lazygit) if requested
+                    if let Some(path) = app.pending_external.take() {
+                        // Stop event reader thread completely
+                        event_stop.store(true, Ordering::Relaxed);
+                        let _ = event_handle.join();
+
+                        launch_external(path.to_string_lossy().as_ref());
+
+                        // Refresh the repo that was just opened in lazygit
+                        if let Some(status) = git::get_repo_status(&path) {
+                            app.update_repo(status);
+                            let _ = cache::save_cache(&app.repos);
+                        }
+
+                        // Drain stale events from channel
+                        while rx.try_recv().is_ok() {}
+
+                        // Spawn fresh event reader thread
+                        event_stop.store(false, Ordering::Relaxed);
+                        event_handle = event::spawn_event_reader(
+                            tx.clone(),
+                            250,
+                            Arc::clone(&event_stop),
+                        );
+                        terminal.clear()?;
+                    }
                 }
                 Event::Mouse(mouse) => {
                     handle_mouse(&mut app, mouse);
@@ -277,10 +307,7 @@ fn handle_key(
         // Open lazygit
         KeyCode::Enter => {
             if let Some(repo) = app.selected_repo() {
-                let path = repo.path.clone();
-                if let Err(msg) = launch_external(path.to_string_lossy().as_ref()) {
-                    app.flash_message = Some((msg, std::time::Instant::now()));
-                }
+                app.pending_external = Some(repo.path.clone());
             }
         }
 
@@ -327,22 +354,18 @@ fn handle_mouse(app: &mut App, mouse: crossterm::event::MouseEvent) {
     }
 }
 
-fn launch_external(path: &str) -> Result<(), String> {
+fn launch_external(path: &str) {
     let _ = disable_raw_mode();
+    let _ = io::stdout().execute(crossterm::event::DisableMouseCapture);
     let _ = io::stdout().execute(LeaveAlternateScreen);
 
-    let result = std::process::Command::new("lazygit")
+    let _ = std::process::Command::new("lazygit")
         .current_dir(path)
         .status();
 
     let _ = enable_raw_mode();
     let _ = io::stdout().execute(EnterAlternateScreen);
-
-    match result {
-        Ok(status) if status.success() => Ok(()),
-        Ok(_) => Ok(()), // lazygit exited non-zero but ran fine
-        Err(_) => Err("lazygit not found. Install: https://github.com/jesseduffield/lazygit".to_string()),
-    }
+    let _ = io::stdout().execute(crossterm::event::EnableMouseCapture);
 }
 
 fn copy_to_clipboard(text: &str) -> bool {
