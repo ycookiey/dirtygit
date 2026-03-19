@@ -4,12 +4,14 @@ mod config;
 mod event;
 mod git;
 mod scanner;
+mod setup;
 mod types;
 mod ui;
 
 use app::{ActivePane, App, InputMode};
 use config::Config;
 use crossterm::event::{KeyCode, KeyEventKind, KeyModifiers};
+use setup::SetupAction;
 use crossterm::event::EnableMouseCapture;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
@@ -34,11 +36,16 @@ async fn main() -> io::Result<()> {
     let mut app = App::new();
 
     // Load config
-    let config = match Config::load() {
-        Ok(cfg) => Some(cfg),
-        Err(msg) => {
-            app.config_error = Some(msg);
-            None
+    let config = if !Config::config_path().exists() {
+        app.setup_state = Some(setup::SetupState::new());
+        None
+    } else {
+        match Config::load() {
+            Ok(cfg) => Some(cfg),
+            Err(msg) => {
+                app.config_error = Some(msg);
+                None
+            }
         }
     };
 
@@ -101,6 +108,58 @@ async fn main() -> io::Result<()> {
                     if key.kind != KeyEventKind::Press {
                         continue;
                     }
+
+                    // Setup mode
+                    if let Some(ref mut setup) = app.setup_state {
+                        match setup.handle_key(key.code, key.modifiers) {
+                            SetupAction::Save(dirs) => {
+                                match Config::save(&dirs) {
+                                    Ok(cfg) => {
+                                        app.setup_state = None;
+                                        app.scanning = true;
+                                        spawn_scan(&cfg, &tx, &app.repos);
+                                        let interval = cfg.interval_secs;
+                                        let scan_tx = tx.clone();
+                                        tokio::spawn(async move {
+                                            loop {
+                                                tokio::time::sleep(
+                                                    tokio::time::Duration::from_secs(interval),
+                                                )
+                                                .await;
+                                                if let Ok(cfg) = Config::load() {
+                                                    scanner::scan_all_parallel(
+                                                        &cfg,
+                                                        scan_tx.clone(),
+                                                        &[],
+                                                    )
+                                                    .await;
+                                                }
+                                            }
+                                        });
+                                        app.flash_message = Some((
+                                            format!(
+                                                "Config saved: {}",
+                                                Config::config_path().display()
+                                            ),
+                                            std::time::Instant::now(),
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        if let Some(ref mut s) = app.setup_state {
+                                            s.warning = Some(format!("Save failed: {}", e));
+                                        }
+                                    }
+                                }
+                                continue;
+                            }
+                            SetupAction::Quit => {
+                                app.running = false;
+                                continue;
+                            }
+                            SetupAction::None => continue,
+                        }
+                    }
+
                     handle_key(&mut app, key.code, key.modifiers, &tx);
 
                     // Launch external program (lazygit) if requested

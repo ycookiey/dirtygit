@@ -48,8 +48,8 @@ impl Config {
         let path = Self::config_path();
         if !path.exists() {
             return Err(format!(
-                "設定ファイルが見つかりません。{} を作成してください\n\n\
-                 サンプル設定:\n\n\
+                "Config file not found: {}\n\n\
+                 Example:\n\n\
                  # ~/.config/dirtygit/config.toml\n\
                  scan_dirs = [\n\
                      \"~/projects\",\n\
@@ -63,12 +63,36 @@ impl Config {
         }
 
         let content = std::fs::read_to_string(&path)
-            .map_err(|e| format!("設定ファイルの読み込みに失敗: {}", e))?;
+            .map_err(|e| format!("Failed to read config: {}", e))?;
 
         let config: Config =
-            toml::from_str(&content).map_err(|e| format!("設定ファイルのパースに失敗: {}", e))?;
+            toml::from_str(&content).map_err(|e| format!("Failed to parse config: {}", e))?;
 
         Ok(config)
+    }
+
+    pub fn save(scan_dirs: &[String]) -> Result<Self, String> {
+        let path = Self::config_path();
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create directory: {}", e))?;
+        }
+
+        let mut content = String::from("scan_dirs = [\n");
+        for dir in scan_dirs {
+            let normalized = dir.replace('\\', "/");
+            content.push_str(&format!("    \"{}\",\n", normalized));
+        }
+        content.push_str("]\n\n");
+        content.push_str("# exclude = [\"node_modules\", \".cache\", \"vendor\"]\n");
+        content.push_str("# interval_secs = 300\n");
+        content.push_str("# max_depth = 3\n");
+
+        std::fs::write(&path, &content)
+            .map_err(|e| format!("Failed to write config: {}", e))?;
+
+        toml::from_str::<Config>(&content)
+            .map_err(|e| format!("Failed to parse config: {}", e))
     }
 
     pub fn expanded_scan_dirs(&self) -> Vec<PathBuf> {

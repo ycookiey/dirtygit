@@ -1,3 +1,4 @@
+use crate::setup::SetupState;
 use crate::types::RepoStatus;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,6 +39,7 @@ pub struct App {
     pub flash_message: Option<(String, std::time::Instant)>,
     pub repo_list_area: (u16, u16, u16, u16), // (x, y, width, height) for mouse hit testing
     pub pending_external: Option<std::path::PathBuf>,
+    pub setup_state: Option<SetupState>,
 }
 
 impl App {
@@ -61,6 +63,7 @@ impl App {
             flash_message: None,
             repo_list_area: (0, 0, 0, 0),
             pending_external: None,
+            setup_state: None,
         }
     }
 

@@ -1,6 +1,6 @@
 [package]
 name = "dirtygit"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2021"
 description = "TUI dashboard to monitor git status across multiple repositories"
 license = "MIT"

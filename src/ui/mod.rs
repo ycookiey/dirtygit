@@ -1,5 +1,6 @@
 mod detail;
 mod repo_list;
+mod setup;
 
 use crate::app::{App, InputMode};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
@@ -9,6 +10,12 @@ use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use ratatui::Frame;
 
 pub fn draw(f: &mut Frame, app: &mut App) {
+    // Setup wizard (first run)
+    if let Some(ref state) = app.setup_state {
+        setup::draw(f, state);
+        return;
+    }
+
     // If there's a config error, show it full-screen
     if let Some(ref err) = app.config_error {
         draw_config_error(f, err);
