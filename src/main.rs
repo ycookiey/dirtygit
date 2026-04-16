@@ -3,6 +3,7 @@ mod cache;
 mod config;
 mod event;
 mod git;
+mod preferences;
 mod scanner;
 mod setup;
 mod types;
@@ -48,6 +49,13 @@ async fn main() -> io::Result<()> {
             }
         }
     };
+
+    // Restore preferences (sort mode, dirty filter)
+    {
+        let prefs = preferences::load();
+        app.sort_mode = prefs.sort_mode;
+        app.dirty_filter = prefs.dirty_filter;
+    }
 
     // Load cache for instant display
     if config.is_some() {
@@ -341,10 +349,16 @@ fn handle_key(
         }
 
         // Sort
-        KeyCode::Char('s') => app.toggle_sort(),
+        KeyCode::Char('s') => {
+            app.toggle_sort();
+            save_preferences(app);
+        }
 
         // Dirty filter
-        KeyCode::Char('f') => app.toggle_dirty_filter(),
+        KeyCode::Char('f') => {
+            app.toggle_dirty_filter();
+            save_preferences(app);
+        }
 
         // Copy path to clipboard
         KeyCode::Char('c') => {
@@ -477,6 +491,13 @@ fn url_encode_path(path: &str) -> String {
         }
     }
     result
+}
+
+fn save_preferences(app: &App) {
+    preferences::save(&preferences::Preferences {
+        sort_mode: app.sort_mode,
+        dirty_filter: app.dirty_filter,
+    });
 }
 
 fn copy_to_clipboard(text: &str) -> bool {

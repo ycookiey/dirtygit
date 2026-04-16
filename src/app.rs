@@ -1,7 +1,8 @@
 use crate::setup::SetupState;
 use crate::types::RepoStatus;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SortMode {
     DirtyFirst,
     Name,
