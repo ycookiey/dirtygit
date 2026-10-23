@@ -26,7 +26,6 @@ use tokio::sync::mpsc;
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
-    // Initialize terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     stdout.execute(EnterAlternateScreen)?;
@@ -36,7 +35,6 @@ async fn main() -> io::Result<()> {
 
     let mut app = App::new();
 
-    // Load config
     let config = if !Config::config_path().exists() {
         app.setup_state = Some(setup::SetupState::new());
         None
@@ -50,34 +48,28 @@ async fn main() -> io::Result<()> {
         }
     };
 
-    // Restore preferences (sort mode, dirty filter)
     {
         let prefs = preferences::load();
         app.sort_mode = prefs.sort_mode;
         app.dirty_filter = prefs.dirty_filter;
     }
 
-    // Load cache for instant display
     if config.is_some() {
         if let Some(cached) = cache::load_cache() {
             app.load_from_cache(cached);
         }
     }
 
-    // Set up event channel
     let (tx, mut rx) = mpsc::unbounded_channel();
 
-    // Spawn crossterm event reader
     let event_stop = Arc::new(AtomicBool::new(false));
     let mut event_handle = event::spawn_event_reader(tx.clone(), 250, Arc::clone(&event_stop));
 
-    // Spawn initial background scan
     if let Some(ref cfg) = config {
         app.scanning = true;
         spawn_scan(cfg, &tx, &app.repos);
     }
 
-    // Spawn periodic background scan
     if let Some(ref cfg) = config {
         let interval = cfg.interval_secs;
         let scan_tx = tx.clone();
@@ -91,7 +83,6 @@ async fn main() -> io::Result<()> {
         });
     }
 
-    // Spawn render timer (30fps)
     {
         let render_tx = tx.clone();
         tokio::spawn(async move {
@@ -105,10 +96,8 @@ async fn main() -> io::Result<()> {
         });
     }
 
-    // Initial draw
     terminal.draw(|f| ui::draw(f, &mut app))?;
 
-    // Main loop
     loop {
         if let Some(event) = rx.recv().await {
             match event {
@@ -117,7 +106,6 @@ async fn main() -> io::Result<()> {
                         continue;
                     }
 
-                    // Setup mode
                     if let Some(ref mut setup) = app.setup_state {
                         match setup.handle_key(key.code, key.modifiers) {
                             SetupAction::Save(dirs) => {
@@ -170,15 +158,13 @@ async fn main() -> io::Result<()> {
 
                     handle_key(&mut app, key.code, key.modifiers, &tx);
 
-                    // Launch external program (lazygit) if requested
                     if let Some(path) = app.pending_external.take() {
-                        // Stop event reader thread completely
+                        // Stop the reader thread so it does not take lazygit's input
                         event_stop.store(true, Ordering::Relaxed);
                         let _ = event_handle.join();
 
                         launch_external(path.to_string_lossy().as_ref());
 
-                        // Refresh the repo that was just opened in lazygit
                         if let Some(status) = git::get_repo_status(&path) {
                             app.update_repo(status);
                             let _ = cache::save_cache(&app.repos);
@@ -187,7 +173,6 @@ async fn main() -> io::Result<()> {
                         // Drain stale events from channel
                         while rx.try_recv().is_ok() {}
 
-                        // Spawn fresh event reader thread
                         event_stop.store(false, Ordering::Relaxed);
                         event_handle = event::spawn_event_reader(
                             tx.clone(),
@@ -211,7 +196,6 @@ async fn main() -> io::Result<()> {
                     app.scanning = false;
                     app.last_scan_time =
                         Some(chrono::Local::now().format("%H:%M:%S").to_string());
-                    // Save cache with fresh data
                     let _ = cache::save_cache(&app.repos);
                 }
             }
@@ -222,7 +206,6 @@ async fn main() -> io::Result<()> {
         }
     }
 
-    // Restore terminal
     disable_raw_mode()?;
     terminal.backend_mut().execute(crossterm::event::DisableMouseCapture)?;
     terminal.backend_mut().execute(LeaveAlternateScreen)?;
@@ -249,7 +232,6 @@ fn handle_key(
     modifiers: KeyModifiers,
     tx: &mpsc::UnboundedSender<Event>,
 ) {
-    // Handle help overlay
     if app.show_help {
         match code {
             KeyCode::Char('?') | KeyCode::Esc => app.show_help = false,
@@ -258,7 +240,6 @@ fn handle_key(
         return;
     }
 
-    // Handle search mode input
     if app.input_mode == InputMode::Search {
         match code {
             KeyCode::Esc => {
@@ -282,12 +263,10 @@ fn handle_key(
         return;
     }
 
-    // Normal mode
     match code {
         KeyCode::Char('q') => app.running = false,
         KeyCode::Char('c') if modifiers.contains(KeyModifiers::CONTROL) => app.running = false,
 
-        // Navigation
         KeyCode::Char('j') | KeyCode::Down => match app.active_pane {
             ActivePane::RepoList => app.move_down(),
             ActivePane::Detail => {
@@ -300,7 +279,6 @@ fn handle_key(
                 app.detail_scroll = app.detail_scroll.saturating_sub(1);
             }
         },
-        // Page navigation
         KeyCode::Char('d') if modifiers.contains(KeyModifiers::CONTROL) => match app.active_pane {
             ActivePane::RepoList => app.move_down_n(app.list_height / 2),
             ActivePane::Detail => {
@@ -340,7 +318,6 @@ fn handle_key(
             }
         }
 
-        // Pane switching
         KeyCode::Tab => {
             app.active_pane = match app.active_pane {
                 ActivePane::RepoList => ActivePane::Detail,
@@ -348,19 +325,16 @@ fn handle_key(
             };
         }
 
-        // Sort
         KeyCode::Char('s') => {
             app.toggle_sort();
             save_preferences(app);
         }
 
-        // Dirty filter
         KeyCode::Char('f') => {
             app.toggle_dirty_filter();
             save_preferences(app);
         }
 
-        // Copy path to clipboard
         KeyCode::Char('c') => {
             if let Some(repo) = app.selected_repo() {
                 let path_str = repo.path.display().to_string();
@@ -376,18 +350,15 @@ fn handle_key(
             }
         }
 
-        // Help
         KeyCode::Char('?') => {
             app.show_help = true;
         }
 
-        // Search
         KeyCode::Char('/') => {
             app.input_mode = InputMode::Search;
             app.search_query.clear();
         }
 
-        // Refresh
         KeyCode::Char('r') => {
             if let Ok(cfg) = Config::load() {
                 app.scanning = true;
@@ -395,7 +366,6 @@ fn handle_key(
             }
         }
 
-        // Open lazygit
         KeyCode::Enter => {
             if let Some(repo) = app.selected_repo() {
                 app.pending_external = Some(repo.path.clone());
@@ -450,7 +420,7 @@ fn launch_external(path: &str) {
     let _ = io::stdout().execute(crossterm::event::DisableMouseCapture);
     let _ = io::stdout().execute(LeaveAlternateScreen);
 
-    // Emit OSC 7 so terminal emulators (e.g. WezTerm) track the CWD
+    // Lets terminals that track the working directory through OSC 7 follow lazygit into the repo
     emit_osc7(path);
 
     let _ = std::process::Command::new("lazygit")
@@ -534,7 +504,6 @@ fn copy_to_clipboard(text: &str) -> bool {
     #[cfg(target_os = "linux")]
     {
         use std::process::{Command, Stdio};
-        // Try xclip first, then xsel
         for cmd in &["xclip", "xsel"] {
             let args: Vec<&str> = if *cmd == "xclip" {
                 vec!["-selection", "clipboard"]

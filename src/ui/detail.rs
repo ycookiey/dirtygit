@@ -66,7 +66,6 @@ pub fn draw(f: &mut Frame, app: &App, area: Rect) {
 
     let mut lines: Vec<Line> = Vec::new();
 
-    // Repo name and path
     lines.push(Line::from(vec![
         Span::styled("  Repo: ", Style::default().add_modifier(Modifier::BOLD)),
         Span::styled(&repo.name, Style::default().fg(Color::White)),
@@ -101,7 +100,6 @@ pub fn draw(f: &mut Frame, app: &App, area: Rect) {
 
     lines.push(Line::from(""));
 
-    // Staged changes
     if !repo.staged.is_empty() {
         lines.push(Line::from(Span::styled(
             format!("── Staged ({}) ──", repo.staged.len()),
@@ -121,7 +119,6 @@ pub fn draw(f: &mut Frame, app: &App, area: Rect) {
         lines.push(Line::from(""));
     }
 
-    // Unstaged changes
     if !repo.unstaged.is_empty() {
         lines.push(Line::from(Span::styled(
             format!("── Unstaged ({}) ──", repo.unstaged.len()),
@@ -141,7 +138,6 @@ pub fn draw(f: &mut Frame, app: &App, area: Rect) {
         lines.push(Line::from(""));
     }
 
-    // Untracked files
     if !repo.untracked.is_empty() {
         lines.push(Line::from(Span::styled(
             format!("── Untracked ({}) ──", repo.untracked.len()),

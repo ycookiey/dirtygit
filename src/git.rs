@@ -9,7 +9,6 @@ pub fn get_repo_status(path: &Path) -> Option<RepoStatus> {
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| path.display().to_string());
 
-    // Get branch and status info using porcelain v2
     let status_output = Command::new("git")
         .args(["status", "--porcelain=v2", "--branch"])
         .current_dir(path)
@@ -47,7 +46,6 @@ pub fn get_repo_status(path: &Path) -> Option<RepoStatus> {
                 let x = xy.chars().next().unwrap_or('.');
                 let y = xy.chars().nth(1).unwrap_or('.');
 
-                // For rename entries (type 2), path might contain a tab
                 let file_path = if line.starts_with("2 ") {
                     // Rename: last field is "path\torigPath"
                     parts[8].split('\t').next().unwrap_or(parts[8]).to_string()
@@ -73,7 +71,6 @@ pub fn get_repo_status(path: &Path) -> Option<RepoStatus> {
         }
     }
 
-    // Get last commit info
     let (last_commit_message, last_commit_time, last_commit_epoch) = get_last_commit(path);
 
     let is_dirty =

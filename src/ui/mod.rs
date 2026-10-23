@@ -10,13 +10,11 @@ use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use ratatui::Frame;
 
 pub fn draw(f: &mut Frame, app: &mut App) {
-    // Setup wizard (first run)
     if let Some(ref state) = app.setup_state {
         setup::draw(f, state);
         return;
     }
 
-    // If there's a config error, show it full-screen
     if let Some(ref err) = app.config_error {
         draw_config_error(f, err);
         return;
@@ -48,13 +46,11 @@ fn draw_header(f: &mut Frame, app: &App, area: Rect) {
     let bg = Color::DarkGray;
     let mut spans: Vec<Span> = Vec::new();
 
-    // App summary
     spans.push(Span::styled(
         format!(" {}/{} dirty", dirty_count, total_count),
         Style::default().fg(Color::White).bg(bg).add_modifier(Modifier::BOLD),
     ));
 
-    // Scan status
     if app.scanning {
         let done = total_count - stale_count;
         let bar_width = 10usize;
@@ -72,7 +68,6 @@ fn draw_header(f: &mut Frame, app: &App, area: Rect) {
         ));
     }
 
-    // Sort badge
     let sort_label = match app.sort_mode {
         crate::app::SortMode::DirtyFirst => "dirty↑",
         crate::app::SortMode::Name => "name",
@@ -83,7 +78,6 @@ fn draw_header(f: &mut Frame, app: &App, area: Rect) {
         Style::default().fg(Color::Cyan).bg(bg),
     ));
 
-    // Filter badge
     if app.dirty_filter {
         spans.push(Span::styled(
             " [dirty only]",
@@ -91,7 +85,6 @@ fn draw_header(f: &mut Frame, app: &App, area: Rect) {
         ));
     }
 
-    // Showing count (if filtered)
     let shown = app.filtered_indices.len();
     if shown != total_count {
         spans.push(Span::styled(
@@ -127,7 +120,6 @@ fn draw_main(f: &mut Frame, app: &mut App, area: Rect) {
 }
 
 fn draw_footer(f: &mut Frame, app: &App, area: Rect) {
-    // Show flash message if active (3 second duration)
     if let Some((ref msg, instant)) = app.flash_message {
         if instant.elapsed().as_secs() < 3 {
             let flash = Paragraph::new(Line::from(Span::styled(
@@ -158,7 +150,6 @@ fn draw_footer(f: &mut Frame, app: &App, area: Rect) {
         InputMode::Normal => {
             let mut parts: Vec<Span> = Vec::new();
 
-            // Show active search filter
             if !app.search_query.is_empty() {
                 parts.push(Span::styled(
                     format!(" /{}  ", app.search_query),

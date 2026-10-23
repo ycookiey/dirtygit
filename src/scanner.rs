@@ -16,7 +16,6 @@ pub async fn scan_all_parallel(
 ) {
     let mut paths = discover_repos(config);
 
-    // Prioritize previously-dirty repos
     let dirty_paths: HashSet<PathBuf> = cached_repos
         .iter()
         .filter(|r| r.is_dirty)

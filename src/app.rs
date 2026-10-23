@@ -85,7 +85,6 @@ impl App {
             })
             .collect();
 
-        // Sort filtered indices
         let repos = &self.repos;
         let sort_mode = self.sort_mode;
         self.filtered_indices.sort_by(|&a, &b| {
@@ -101,7 +100,6 @@ impl App {
             }
         });
 
-        // Clamp selection
         if !self.filtered_indices.is_empty() {
             if self.selected >= self.filtered_indices.len() {
                 self.selected = self.filtered_indices.len() - 1;
@@ -162,7 +160,6 @@ impl App {
         self.update_filtered();
     }
 
-    /// Load cached repos with stale=true.
     pub fn load_from_cache(&mut self, mut repos: Vec<RepoStatus>) {
         for r in &mut repos {
             r.stale = true;
@@ -170,7 +167,6 @@ impl App {
         self.set_repos(repos);
     }
 
-    /// Update a single repo by path match, or add if new.
     pub fn update_repo(&mut self, status: RepoStatus) {
         if let Some(pos) = self.repos.iter().position(|r| r.path == status.path) {
             self.repos[pos] = status;

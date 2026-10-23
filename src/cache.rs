@@ -26,7 +26,6 @@ pub fn save_cache(repos: &[RepoStatus]) -> io::Result<()> {
         fs::create_dir_all(parent)?;
     }
 
-    // Filter out stale repos (only save fresh data)
     let fresh: Vec<&RepoStatus> = repos.iter().filter(|r| !r.stale).collect();
 
     let json = serde_json::to_string(&fresh)?;

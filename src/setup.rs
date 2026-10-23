@@ -46,7 +46,6 @@ impl CompletionState {
     /// Expands `~` to home directory.
     fn split_input(input: &str) -> (String, String) {
         let expanded = expand_tilde(input);
-        // Find last separator
         let last_sep = expanded
             .rfind('/')
             .or_else(|| expanded.rfind('\\'));
@@ -60,7 +59,6 @@ impl CompletionState {
         }
     }
 
-    /// Read directory entries and filter by prefix.
     fn read_candidates(base_dir: &str, prefix: &str) -> Vec<String> {
         let dir_path = if base_dir.is_empty() {
             return Vec::new();
@@ -91,11 +89,10 @@ impl CompletionState {
             })
             .collect();
 
-        candidates.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+        candidates.sort_by_key(|a| a.to_lowercase());
         candidates
     }
 
-    /// Find the longest common prefix among candidates.
     fn common_prefix(candidates: &[String]) -> String {
         if candidates.is_empty() {
             return String::new();
@@ -131,13 +128,11 @@ impl CompletionState {
         match self.candidates.len() {
             0 => {}
             1 => {
-                // Single match: auto-complete
                 let sep = std::path::MAIN_SEPARATOR;
                 *input = format!("{}{}{}", base, self.candidates[0], sep);
                 self.clear();
             }
             _ => {
-                // Multiple matches: complete common prefix and open menu
                 let common = Self::common_prefix(&self.candidates);
                 if common.len() > prefix.len() {
                     *input = format!("{}{}", base, common);
@@ -148,7 +143,6 @@ impl CompletionState {
         }
     }
 
-    /// Cycle to next candidate in menu.
     fn cycle(&mut self, input: &mut String) {
         if self.candidates.is_empty() {
             return;
@@ -188,7 +182,6 @@ impl CompletionState {
         }
     }
 
-    /// Accept current selection, return the completed path.
     pub fn accept(&self) -> Option<String> {
         if self.menu_open && !self.candidates.is_empty() {
             let sep = std::path::MAIN_SEPARATOR;
@@ -231,13 +224,11 @@ impl SetupState {
 
         let expanded = expand_tilde(&trimmed);
 
-        // Strip trailing separator
         let path_str = expanded
             .trim_end_matches('/')
             .trim_end_matches('\\')
             .to_string();
 
-        // Duplicate check (case-insensitive on Windows)
         if self
             .dirs
             .iter()
@@ -247,7 +238,6 @@ impl SetupState {
             return;
         }
 
-        // Existence check
         if !Path::new(&path_str).is_dir() {
             self.warning = Some("path does not exist (added anyway)".to_string());
         }
@@ -271,12 +261,10 @@ impl SetupState {
     }
 
     pub fn handle_key(&mut self, code: KeyCode, modifiers: KeyModifiers) -> SetupAction {
-        // Ctrl+C: quit
         if code == KeyCode::Char('c') && modifiers.contains(KeyModifiers::CONTROL) {
             return SetupAction::Quit;
         }
 
-        // Clear warning on any keypress
         self.warning = None;
 
         match self.focus {
@@ -325,18 +313,15 @@ impl SetupState {
             }
             KeyCode::Enter => {
                 if self.completion.menu_open {
-                    // Accept completion selection
                     if let Some(path) = self.completion.accept() {
                         self.input = path;
                     }
                     self.completion.close();
                 } else if self.input.trim().is_empty() {
-                    // Empty Enter → save
                     if !self.dirs.is_empty() {
                         return SetupAction::Save(self.dirs.clone());
                     }
                 } else {
-                    // Add to list
                     self.add_current_input();
                 }
                 SetupAction::None
