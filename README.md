@@ -70,19 +70,8 @@ On Windows, write paths with forward slashes (`"C:/src"`) or in single quotes (`
 
 | Key | Action |
 |-----|--------|
-| `j` / `↓` | Move down |
-| `k` / `↑` | Move up |
-| `g` / `G` | Jump to top / bottom |
-| `Ctrl+d` / `Ctrl+u` | Half page down / up |
-| `Ctrl+f` / `Ctrl+b` | Full page down / up |
-| `Tab` | Switch between the list and the detail pane |
-| `/` | Search by repository name (`Enter` keeps the filter, `Esc` clears it) |
-| `s` | Cycle sort mode |
-| `f` | Toggle the dirty-only filter |
-| `c` | Copy the repository path to the clipboard |
-| `r` | Rescan now |
 | `Enter` | Open lazygit in the selected repository |
-| `?` | Show or hide help |
+| `?` | Show or hide help, which lists every key |
 | `q` | Quit |
 
 The mouse wheel scrolls the active pane.
@@ -91,7 +80,7 @@ The mouse wheel scrolls the active pane.
 
 - Folders whose names start with `.` are not searched, and a repository inside another repository is not listed
 - If `lazygit` is not on your `PATH`, `Enter` opens nothing
-- On Linux, `c` needs `xclip` or `xsel`
+- On Linux, copying the repository path to the clipboard (`c`) needs `xclip` or `xsel`
 
 ## Uninstall
 
