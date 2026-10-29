@@ -32,7 +32,6 @@ pub fn draw(f: &mut Frame, app: &mut App, area: Rect) {
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color));
 
-    // Zero-state: show message when no repos match
     if app.filtered_indices.is_empty() {
         let msg = if app.repos.is_empty() {
             if app.scanning {
@@ -124,7 +123,6 @@ pub fn draw(f: &mut Frame, app: &mut App, area: Rect) {
         })
         .collect();
 
-    // Responsive column widths based on available width
     use ratatui::layout::Constraint as C;
     let inner_width = area.width.saturating_sub(2); // borders
     let widths: Vec<C> = if inner_width < 50 {

@@ -138,7 +138,6 @@ fn draw_footer(f: &mut Frame, state: &SetupState, area: Rect) {
     let key = Style::default().fg(Color::Cyan);
     let dim = Style::default().fg(Color::DarkGray);
 
-    // Enter label changes based on context
     let enter_label = if state.focus == SetupFocus::List
         || (state.focus == SetupFocus::Input && state.input.trim().is_empty() && !state.dirs.is_empty())
     {
