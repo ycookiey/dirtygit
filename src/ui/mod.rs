@@ -58,7 +58,7 @@ fn draw_header(f: &mut Frame, app: &App, area: Rect) {
     if app.scanning {
         let done = total_count - stale_count;
         let bar_width = 10usize;
-        let filled = if total_count > 0 { done * bar_width / total_count } else { 0 };
+        let filled = (done * bar_width).checked_div(total_count).unwrap_or(0);
         let empty = bar_width - filled;
         spans.push(Span::styled(
             format!(" [{}{}] {}/{}",
